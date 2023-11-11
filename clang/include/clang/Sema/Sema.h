@@ -1646,7 +1646,7 @@ public:
   bool DeclareRISCVSiFiveVectorBuiltins = false;
 
   /// Indicate RISC-V vector 0.7.1 builtin functions enabled or not.
-  bool DeclareRISCVV0p7Builtins = false;
+  bool DeclareRISCVXTHeadVBuiltins = false;
 
 private:
   std::unique_ptr<sema::RISCVIntrinsicManager> RVIntrinsicManager;
@@ -13629,7 +13629,7 @@ private:
   bool CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
                                    CallExpr *TheCall);
   bool CheckAMDGCNBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
-  bool CheckRISCVLMUL(CallExpr *TheCall, unsigned ArgNum);
+  bool CheckRISCVLMUL(CallExpr *TheCall, unsigned ArgNum, bool AllowFractional);
   bool CheckRISCVBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
                                      CallExpr *TheCall);
   void checkRVVTypeSupport(QualType Ty, SourceLocation Loc, ValueDecl *D);

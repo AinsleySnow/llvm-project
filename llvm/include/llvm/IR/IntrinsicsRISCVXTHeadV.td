@@ -15,13 +15,131 @@
 
 let TargetPrefix = "riscv" in {
   // 6. Configuration-Setting and Utility
-  def int_riscv_xvsetvl    : Intrinsic<[llvm_i64_ty],
-                                       [/* AVL */ llvm_i64_ty, /* SEW */ llvm_i64_ty, /* LMUL */ llvm_i64_ty],
-                                       [IntrNoMem]>;
-  def int_riscv_xvsetvlmax : Intrinsic<[llvm_i64_ty],
-                                       [/* SEW */ llvm_i64_ty, /* LMUL */ llvm_i64_ty],
-                                       [IntrNoMem]>;
+  def int_riscv_xvsetvl    : Intrinsic<[llvm_anyint_ty],
+                                       [/* AVL */ LLVMMatchType<0>,
+                                        /* SEW */ LLVMMatchType<0>,
+                                        /* LMUL */ LLVMMatchType<0>
+                                       ],
+                                       [IntrNoMem,
+                                        ImmArg<ArgIndex<1>>,
+                                        ImmArg<ArgIndex<2>>
+                                       ]>;
+  def int_riscv_xvsetvlmax : Intrinsic<[llvm_anyint_ty],
+                                       [/* SEW */ LLVMMatchType<0>,
+                                        /* LMUL */ LLVMMatchType<0>
+                                       ],
+                                       [IntrNoMem,
+                                        ImmArg<ArgIndex<0>>,
+                                        ImmArg<ArgIndex<1>>
+                                       ]>;
 
   defm xvadd : RISCVBinaryAAX;
 
 } // TargetPrefix = "riscv"
+
+let TargetPrefix = "riscv" in {
+  // 7. Vector Loads and Stores
+
+  // 7.4 Vector Unit-Strided Instructions
+  // For unit stride load
+  // Input: (passthru, pointer, vl)
+  class XVUSLoad
+        : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                    [LLVMMatchType<0>, llvm_ptr_ty, llvm_anyint_ty],
+                    [NoCapture<ArgIndex<1>>, IntrReadMem]>, RISCVVIntrinsic {
+    let VLOperand = 2;
+  }
+
+  // For unit stride mask load
+  // Input: (passthru, pointer, vl)
+  class XVUSLoadMasked
+        : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                    [LLVMMatchType<0>, llvm_ptr_ty,
+                     LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                     llvm_anyint_ty],
+                    [NoCapture<ArgIndex<1>>, IntrReadMem]>,
+                    RISCVVIntrinsic {
+    let VLOperand = 3;
+  }
+
+  // For unit stride store
+  // Input: (vector_in, pointer, vl)
+  class XVUSStore
+        : DefaultAttrsIntrinsic<[],
+                    [llvm_anyvector_ty, llvm_ptr_ty, llvm_anyint_ty],
+                    [NoCapture<ArgIndex<1>>, IntrWriteMem]>, RISCVVIntrinsic {
+    let VLOperand = 2;
+  }
+
+  // For unit stride store with mask
+  // Input: (vector_in, pointer, mask, vl)
+  class XVUSStoreMasked
+        : DefaultAttrsIntrinsic<[],
+                    [llvm_anyvector_ty, llvm_ptr_ty,
+                     LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                     llvm_anyint_ty],
+                    [NoCapture<ArgIndex<1>>, IntrWriteMem]>, RISCVVIntrinsic {
+    let VLOperand = 3;
+  }
+
+  // We define vlx (e.g. vlb), vlxu (e.g. vlbu) and vle
+  // seperately here because otherwise we cannot distinguish
+  // which intrinsic the user actually calls when lowering pseudos.
+  def int_riscv_xvlb : XVUSLoad;
+  def int_riscv_xvlh : XVUSLoad;
+  def int_riscv_xvlw : XVUSLoad;
+  def int_riscv_xvle : XVUSLoad;
+  def int_riscv_xvlbu : XVUSLoad;
+  def int_riscv_xvlhu : XVUSLoad;
+  def int_riscv_xvlwu : XVUSLoad;
+  def int_riscv_xvlb_mask : XVUSLoadMasked;
+  def int_riscv_xvlh_mask : XVUSLoadMasked;
+  def int_riscv_xvlw_mask : XVUSLoadMasked;
+  def int_riscv_xvle_mask : XVUSLoadMasked;
+  def int_riscv_xvlbu_mask : XVUSLoadMasked;
+  def int_riscv_xvlhu_mask : XVUSLoadMasked;
+  def int_riscv_xvlwu_mask : XVUSLoadMasked;
+
+  def int_riscv_xvsb : XVUSStore;
+  def int_riscv_xvsh : XVUSStore;
+  def int_riscv_xvsw : XVUSStore;
+  def int_riscv_xvse : XVUSStore;
+  def int_riscv_xvsb_mask : XVUSStoreMasked;
+  def int_riscv_xvsh_mask : XVUSStoreMasked;
+  def int_riscv_xvsw_mask : XVUSStoreMasked;
+  def int_riscv_xvse_mask : XVUSStoreMasked;
+} // TargetPrefix = "riscv"
+
+// let TargetPrefix = "riscv" in {
+//   // 8. Vector AMO Operations (Zvamo)
+
+//   // For atomic operations without mask
+//   // Input: (base pointer, index, value, vl)
+//   class XVAMONoMask
+//         : Intrinsic<[llvm_anyvector_ty],
+//                     [llvm_ptr_ty, llvm_anyvector_ty, LLVMMatchType<0>,
+//                      llvm_anyint_ty],
+//                     [NoCapture<ArgIndex<0>>]>, RISCVVIntrinsic;
+//   // For atomic operations with mask
+//   // Input: (base pointer, index, value, mask, vl)
+//   class XVAMOMask
+//         : Intrinsic<[llvm_anyvector_ty],
+//                     [llvm_ptr_ty, llvm_anyvector_ty, LLVMMatchType<0>,
+//                      LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>, llvm_anyint_ty],
+//                     [NoCapture<ArgIndex<0>>]>, RISCVVIntrinsic;
+
+//   multiclass XIntrinsicVAMO {
+//     def "int_riscv_" # NAME           : XVAMONoMask;
+//     def "int_riscv_" # NAME # "_mask" : XVAMOMask;
+//   }
+
+//   defm xvamoswap : XIntrinsicVAMO;
+//   defm xvamoadd  : XIntrinsicVAMO;
+//   defm xvamoxor  : XIntrinsicVAMO;
+//   defm xvamoand  : XIntrinsicVAMO;
+//   defm xvamoor   : XIntrinsicVAMO;
+//   defm xvamomin  : XIntrinsicVAMO;
+//   defm xvamomax  : XIntrinsicVAMO;
+//   defm xvamominu : XIntrinsicVAMO;
+//   defm xvamomaxu : XIntrinsicVAMO;
+// } // TargetPrefix = "riscv"

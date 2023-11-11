@@ -14,6 +14,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "TableGenBackends.h" // Declares all backends.
 #include "clang/Support/RISCVVIntrinsicUtils.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallSet.h"
@@ -99,11 +100,11 @@ private:
 public:
   RVVEmitter(RecordKeeper &R) : Records(R) {}
 
-  /// Emit riscv_vector.h
-  void createHeader(raw_ostream &o);
+  /// Emit riscv_vector.h or riscv_vector_xtheadv.h
+  void createHeader(raw_ostream &o, clang::RVVHeaderType Type);
 
   /// Emit all the __builtin prototypes and code needed by Sema.
-  void createBuiltins(raw_ostream &o);
+  void createBuiltins(raw_ostream &o, clang::RVVHeaderType Type);
 
   /// Emit all the information needed to map builtin -> LLVM IR intrinsic.
   void createCodeGen(raw_ostream &o);
@@ -311,7 +312,7 @@ void SemaSignatureTable::print(raw_ostream &OS) {
 //===----------------------------------------------------------------------===//
 // RVVEmitter implementation
 //===----------------------------------------------------------------------===//
-void RVVEmitter::createHeader(raw_ostream &OS) {
+void RVVEmitter::createHeader(raw_ostream &OS, clang::RVVHeaderType Type) {
 
   OS << "/*===---- riscv_vector.h - RISC-V V-extension RVVIntrinsics "
         "-------------------===\n"
@@ -326,13 +327,30 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
         "------===\n"
         " */\n\n";
 
+  if (Type == clang::RVVHeaderType::RVV) {
+    // `__riscv_vector_xtheadv` is defined in `RISCVTargetInfo::getTargetDefines`
+    // If in `riscv_vector.h` we found that the xtheadv extension is required and enabled,
+    // we forward the include directive to the real header containing intrinsics for xtheadv.
+    OS << "#ifdef __riscv_vector_xtheadv\n";
+    OS << "#include <riscv_vector_xtheadv.h>\n";
+    OS << "#else\n\n";
+    // Otherwise, we include the real header containing intrinsics for RVV 1.0
+  }
+
   OS << "#ifndef __RISCV_VECTOR_H\n";
   OS << "#define __RISCV_VECTOR_H\n\n";
 
   OS << "#include <stdint.h>\n";
   OS << "#include <stddef.h>\n\n";
 
-  OS << "#ifndef __riscv_vector\n";
+  switch (Type) {
+  case clang::RVVHeaderType::RVV:
+    OS << "#ifndef __riscv_vector\n";
+    break;
+  case clang::RVVHeaderType::XTHEADV_VECTOR:
+    OS << "#ifndef __riscv_vector_xtheadv\n";
+    break;
+  }
   OS << "#error \"Vector intrinsics require the vector extension.\"\n";
   OS << "#endif\n\n";
 
@@ -340,7 +358,14 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
   OS << "extern \"C\" {\n";
   OS << "#endif\n\n";
 
-  OS << "#pragma clang riscv intrinsic vector\n\n";
+  switch (Type) {
+  case clang::RVVHeaderType::RVV:
+    OS << "#pragma clang riscv intrinsic vector\n\n";
+    break;
+  case clang::RVVHeaderType::XTHEADV_VECTOR:
+    OS << "#pragma clang riscv intrinsic xtheadv_vector\n\n";
+    break;
+  }
 
   printHeaderCode(OS);
 
@@ -411,9 +436,13 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
   OS << "}\n";
   OS << "#endif // __cplusplus\n";
   OS << "#endif // __RISCV_VECTOR_H\n";
+
+  if (Type == clang::RVVHeaderType::RVV) {
+    OS << "#endif // __riscv_vector_xtheadv\n\n";
+  }
 }
 
-void RVVEmitter::createBuiltins(raw_ostream &OS) {
+void RVVEmitter::createBuiltins(raw_ostream &OS, clang::RVVHeaderType Type) {
   std::vector<std::unique_ptr<RVVIntrinsic>> Defs;
   createRVVIntrinsics(Defs);
 
@@ -422,7 +451,8 @@ void RVVEmitter::createBuiltins(raw_ostream &OS) {
 
   OS << "#if defined(TARGET_BUILTIN) && !defined(RISCVV_BUILTIN)\n";
   OS << "#define RISCVV_BUILTIN(ID, TYPE, ATTRS) TARGET_BUILTIN(ID, TYPE, "
-        "ATTRS, \"zve32x\")\n";
+        "ATTRS, \""
+     << (Type == clang::RVVHeaderType::RVV ? "zve32x" : "xtheadv") << "\")\n";
   OS << "#endif\n";
   for (auto &Def : Defs) {
     auto P =
@@ -631,6 +661,8 @@ void RVVEmitter::createRVVIntrinsics(
     // riscv_vector.h
     if (Name == "vsetvli" || Name == "vsetvlimax")
       continue;
+    if (Name == "xvsetvl" || Name == "xvsetvlmax")
+      continue;
 
     if (!SemaRecords)
       continue;
@@ -750,12 +782,13 @@ void RVVEmitter::createSema(raw_ostream &OS) {
 }
 
 namespace clang {
-void EmitRVVHeader(RecordKeeper &Records, raw_ostream &OS) {
-  RVVEmitter(Records).createHeader(OS);
+void EmitRVVHeader(RecordKeeper &Records, raw_ostream &OS, RVVHeaderType Type) {
+  RVVEmitter(Records).createHeader(OS, Type);
 }
 
-void EmitRVVBuiltins(RecordKeeper &Records, raw_ostream &OS) {
-  RVVEmitter(Records).createBuiltins(OS);
+void EmitRVVBuiltins(RecordKeeper &Records, raw_ostream &OS,
+                     RVVHeaderType Type) {
+  RVVEmitter(Records).createBuiltins(OS, Type);
 }
 
 void EmitRVVBuiltinCG(RecordKeeper &Records, raw_ostream &OS) {

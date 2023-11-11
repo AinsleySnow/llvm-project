@@ -4457,7 +4457,7 @@ bool Sema::CheckAMDGCNBuiltinFunctionCall(unsigned BuiltinID,
   return false;
 }
 
-bool Sema::CheckRISCVLMUL(CallExpr *TheCall, unsigned ArgNum) {
+bool Sema::CheckRISCVLMUL(CallExpr *TheCall, unsigned ArgNum, bool AllowFractional) {
   llvm::APSInt Result;
 
   // We can't check the value of a dependent argument.
@@ -4470,10 +4470,13 @@ bool Sema::CheckRISCVLMUL(CallExpr *TheCall, unsigned ArgNum) {
     return true;
 
   int64_t Val = Result.getSExtValue();
-  if ((Val >= 0 && Val <= 3) || (Val >= 5 && Val <= 7))
+  if ((Val >= 0 && Val <= 3) || (AllowFractional && (Val >= 5 && Val <= 7)))
     return false;
 
-  return Diag(TheCall->getBeginLoc(), diag::err_riscv_builtin_invalid_lmul)
+  return Diag(TheCall->getBeginLoc(),
+              AllowFractional
+                  ? diag::err_riscv_builtin_invalid_lmul
+                  : diag::err_riscv_builtin_invalid_lmul_non_fractional)
          << Arg->getSourceRange();
 }
 
@@ -4601,10 +4604,16 @@ bool Sema::CheckRISCVBuiltinFunctionCall(const TargetInfo &TI,
   switch (BuiltinID) {
   case RISCVVector::BI__builtin_rvv_vsetvli:
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, 3) ||
-           CheckRISCVLMUL(TheCall, 2);
+           CheckRISCVLMUL(TheCall, 2, true);
   case RISCVVector::BI__builtin_rvv_vsetvlimax:
     return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
-           CheckRISCVLMUL(TheCall, 1);
+           CheckRISCVLMUL(TheCall, 1, true);
+  case RISCVVector::BI__builtin_rvv_xvsetvl:
+    return SemaBuiltinConstantArgRange(TheCall, 1, 0, 3) ||
+           CheckRISCVLMUL(TheCall, 2, false);
+  case RISCVVector::BI__builtin_rvv_xvsetvlmax:
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           CheckRISCVLMUL(TheCall, 1, false);
   case RISCVVector::BI__builtin_rvv_vget_v: {
     ASTContext::BuiltinVectorTypeInfo ResVecInfo =
         Context.getBuiltinVectorTypeInfo(cast<BuiltinType>(
@@ -5402,24 +5411,28 @@ bool Sema::CheckWebAssemblyBuiltinFunctionCall(const TargetInfo &TI,
 
 void Sema::checkRVVTypeSupport(QualType Ty, SourceLocation Loc, ValueDecl *D) {
   const TargetInfo &TI = Context.getTargetInfo();
+  // TODO[RVV 0.7.1]: better error message
+  // Note: RVV 0.7.1 contains everything.
+
   // (ELEN, LMUL) pairs of (8, mf8), (16, mf4), (32, mf2), (64, m1) requires at
   // least zve64x
   if ((Ty->isRVVType(/* Bitwidth */ 64, /* IsFloat */ false) ||
        Ty->isRVVType(/* ElementCount */ 1)) &&
-      !TI.hasFeature("zve64x"))
+      (!TI.hasFeature("zve64x") &&
+       !TI.hasFeature("xtheadv")))
     Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve64x";
   if (Ty->isRVVType(/* Bitwidth */ 16, /* IsFloat */ true) &&
-      !TI.hasFeature("zvfh"))
+      (!TI.hasFeature("zvfh") && !TI.hasFeature("xtheadv")))
     Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zvfh";
   if (Ty->isRVVType(/* Bitwidth */ 32, /* IsFloat */ true) &&
-      !TI.hasFeature("zve32f"))
+      (!TI.hasFeature("zve32f") && !TI.hasFeature("xtheadv")))
     Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve32f";
   if (Ty->isRVVType(/* Bitwidth */ 64, /* IsFloat */ true) &&
-      !TI.hasFeature("zve64d"))
+      (!TI.hasFeature("zve64d") && !TI.hasFeature("xtheadv")))
     Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve64d";
   // Given that caller already checked isRVVType() before calling this function,
   // if we don't have at least zve32x supported, then we need to emit error.
-  if (!TI.hasFeature("zve32x"))
+  if (!TI.hasFeature("zve32x") && !TI.hasFeature("xtheadv"))
     Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve32x";
 }
 
