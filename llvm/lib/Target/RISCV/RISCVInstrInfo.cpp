@@ -184,7 +184,9 @@ static bool isConvertibleToVMV_V_V(const RISCVSubtarget &STI,
 
     if (MBBI->getOpcode() == RISCV::PseudoVSETVLI ||
         MBBI->getOpcode() == RISCV::PseudoVSETVLIX0 ||
-        MBBI->getOpcode() == RISCV::PseudoVSETIVLI) {
+        MBBI->getOpcode() == RISCV::PseudoVSETIVLI ||
+        MBBI->getOpcode() == RISCV::PseudoXVSETVLI ||
+        MBBI->getOpcode() == RISCV::PseudoXVSETVLIX0) {
       // There is a vsetvli between COPY and source define instruction.
       // vy = def_vop ...  (producing instruction)
       // ...
@@ -195,8 +197,12 @@ static bool isConvertibleToVMV_V_V(const RISCVSubtarget &STI,
         if (!FirstVSetVLI) {
           FirstVSetVLI = true;
           unsigned FirstVType = MBBI->getOperand(2).getImm();
-          RISCVII::VLMUL FirstLMul = RISCVVType::getVLMUL(FirstVType);
-          FirstSEW = RISCVVType::getSEW(FirstVType);
+          RISCVII::VLMUL FirstLMul = STI.hasVendorXTHeadV() ?
+                                     RISCVVType::getXTHeadVVLMUL(FirstVType) :
+                                     RISCVVType::getVLMUL(FirstVType);
+          FirstSEW = STI.hasVendorXTHeadV() ?
+                      RISCVVType::getXTHeadVSEW(FirstVType) :
+                      RISCVVType::getSEW(FirstVType);
           // The first encountered vsetvli must have the same lmul as the
           // register class of COPY.
           if (FirstLMul != LMul)
@@ -218,12 +224,17 @@ static bool isConvertibleToVMV_V_V(const RISCVSubtarget &STI,
       // If there is a vsetvli between COPY and the producing instruction.
       if (FirstVSetVLI) {
         // If SEW is different, return false.
-        if (RISCVVType::getSEW(VType) != FirstSEW)
+        unsigned SEW = STI.hasVendorXTHeadV() ?
+          RISCVVType::getXTHeadVSEW(VType) : RISCVVType::getSEW(VType);
+        if (SEW != FirstSEW)
           return false;
       }
 
       // If the vsetvli is tail undisturbed, keep the whole register move.
-      if (!RISCVVType::isTailAgnostic(VType))
+      // In RVV 0.7.1, all regular vector instructions place zeros in the
+      // tail elements of the destination vector register group, therefore
+      // it is safe to use vmv.v.v to move elements here.
+      if (!RISCVVType::isTailAgnostic(VType) && !STI.hasVendorXTHeadV())
         return false;
 
       // The checking is conservative. We only have register classes for
@@ -231,7 +242,10 @@ static bool isConvertibleToVMV_V_V(const RISCVSubtarget &STI,
       // for fractional LMUL operations. However, we could not use the vsetvli
       // lmul for widening operations. The result of widening operation is
       // 2 x LMUL.
-      return LMul == RISCVVType::getVLMUL(VType);
+      if (STI.hasVendorXTHeadV())
+        return LMul == RISCVVType::getXTHeadVVLMUL(VType);
+      else
+        return LMul == RISCVVType::getVLMUL(VType);
     } else if (MBBI->isInlineAsm() || MBBI->isCall()) {
       return false;
     } else if (MBBI->getNumDefs()) {
@@ -420,7 +434,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (IsScalableVector) {
     bool UseVMV_V_V = false;
     bool UseVMV_V_I = false;
-    MachineBasicBlock::const_iterator DefMBBI;
+    MachineBasicBlock::const_iterator DefMBBI = MBB.end();
     if (isConvertibleToVMV_V_V(STI, MBB, MBBI, DefMBBI, LMul)) {
       UseVMV_V_V = true;
       // We only need to handle LMUL = 1/2/4/8 here because we only define
@@ -430,20 +444,40 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       default:
         llvm_unreachable("Impossible LMUL for vector register copy.");
       case RISCVII::LMUL_1:
-        Opc = RISCV::PseudoVMV_V_V_M1;
-        VIOpc = RISCV::PseudoVMV_V_I_M1;
+        if (STI.hasVendorXTHeadV()) {
+          Opc = RISCV::PseudoXVMV_V_V_M1;
+          VIOpc = RISCV::PseudoXVMV_V_I_M1;
+        } else {
+          Opc = RISCV::PseudoVMV_V_V_M1;
+          VIOpc = RISCV::PseudoVMV_V_I_M1;
+        }
         break;
       case RISCVII::LMUL_2:
-        Opc = RISCV::PseudoVMV_V_V_M2;
-        VIOpc = RISCV::PseudoVMV_V_I_M2;
+        if (STI.hasVendorXTHeadV()) {
+          Opc = RISCV::PseudoXVMV_V_V_M2;
+          VIOpc = RISCV::PseudoXVMV_V_I_M2;
+        } else {
+          Opc = RISCV::PseudoVMV_V_V_M2;
+          VIOpc = RISCV::PseudoVMV_V_I_M2;
+        }
         break;
       case RISCVII::LMUL_4:
-        Opc = RISCV::PseudoVMV_V_V_M4;
-        VIOpc = RISCV::PseudoVMV_V_I_M4;
+        if (STI.hasVendorXTHeadV()) {
+          Opc = RISCV::PseudoXVMV_V_V_M4;
+          VIOpc = RISCV::PseudoXVMV_V_I_M4;
+        } else {
+          Opc = RISCV::PseudoVMV_V_V_M4;
+          VIOpc = RISCV::PseudoVMV_V_I_M4;
+        }
         break;
       case RISCVII::LMUL_8:
-        Opc = RISCV::PseudoVMV_V_V_M8;
-        VIOpc = RISCV::PseudoVMV_V_I_M8;
+        if (STI.hasVendorXTHeadV()) {
+          Opc = RISCV::PseudoXVMV_V_V_M8;
+          VIOpc = RISCV::PseudoXVMV_V_I_M8;
+        } else {
+          Opc = RISCV::PseudoVMV_V_V_M8;
+          VIOpc = RISCV::PseudoVMV_V_I_M8;
+        }
         break;
       }
 
@@ -451,6 +485,50 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
         UseVMV_V_I = true;
         Opc = VIOpc;
       }
+    }
+
+    // If we are using RVV 0.7.1 and we cannot use vmv.v.v directly,
+    // adjust vl and vtype to emulate behavior vmxr in RVV 1.0,
+    // then restore them after copying.
+    Register TmpVLReg, TmpVTypeReg;
+    unsigned VL, VType;
+    bool RestoreCSR = false;
+    if (STI.hasVendorXTHeadV() && !(UseVMV_V_V || UseVMV_V_I)) {
+      RegScavenger RS;
+
+      RS.enterBasicBlockEnd(MBB);
+      TmpVLReg = RS.FindUnusedReg(&RISCV::GPRAllRegClass);
+      assert(TmpVLReg && "Run out of register when expanding COPY pseudo node.");
+      RS.setRegUsed(TmpVLReg);
+      TmpVTypeReg = RS.FindUnusedReg(&RISCV::GPRAllRegClass);
+      assert(TmpVTypeReg && "Run out of register when expanding COPY pseudo node.");
+      RS.setRegUsed(TmpVTypeReg);
+
+      unsigned LM = 0;
+      switch (LMul) {
+      case RISCVII::LMUL_1: LM = 1; Opc = RISCV::PseudoXVMV_V_V_M1; break;
+      case RISCVII::LMUL_2: LM = 2; Opc = RISCV::PseudoXVMV_V_V_M2; break;
+      case RISCVII::LMUL_4: LM = 4; Opc = RISCV::PseudoXVMV_V_V_M4; break;
+      case RISCVII::LMUL_8: LM = 8; Opc = RISCV::PseudoXVMV_V_V_M8; break;
+      default: llvm_unreachable("Impossible LMUL tag");
+      }
+
+      // Always define SEW to 8 and EDIV to 1 so that we do not
+      // need to calculate evl in assembly code.
+      VType = RISCVVType::encodeXTHeadVTYPE(8, LM, 1);
+      // XTHead XuanTie C906 has 128-bit vector registers.
+      VL = (LM * 128) >> 3;
+      BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), TmpVTypeReg)
+          .addReg(RISCV::X0)
+          .addImm(VL);
+      BuildMI(MBB, MBBI, DL, get(RISCV::CSRRW), TmpVLReg)
+          .addReg(RISCV::VL)
+          .addReg(TmpVTypeReg);
+      BuildMI(MBB, MBBI, DL, get(RISCV::CSRRWI), TmpVTypeReg)
+          .addReg(RISCV::VTYPE)
+          .addImm(VType);
+      UseVMV_V_V = true;
+      RestoreCSR = true;
     }
 
     if (NF == 1) {
@@ -462,9 +540,22 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       else
         MIB = MIB.addReg(SrcReg, getKillRegState(KillSrc));
       if (UseVMV_V_V) {
-        const MCInstrDesc &Desc = DefMBBI->getDesc();
-        MIB.add(DefMBBI->getOperand(RISCVII::getVLOpNum(Desc))); // AVL
-        MIB.add(DefMBBI->getOperand(RISCVII::getSEWOpNum(Desc))); // SEW
+        if (DefMBBI != MBB.end()) {
+          const MCInstrDesc &Desc = DefMBBI->getDesc();
+          MIB.add(DefMBBI->getOperand(RISCVII::getVLOpNum(Desc))); // AVL
+          MIB.add(DefMBBI->getOperand(RISCVII::getSEWOpNum(Desc))); // SEW
+        } else {
+          // If we cannot find defination of the destination, that means
+          // in RVV 1.0 there should be a VMXR instruction. We should already
+          // adjusted vl and vtype above so here we fill the adjusted
+          // vl and vtype to VMV_V_V instruction.
+          MIB.addReg(RISCV::NoRegister)    // AVL
+              .addImm(3);  // SEW (log2(8))
+        }
+        // FIXME: We reuse the pseudo in RVV 1.0 and the pseudos define
+        // HasVecPolicyOp and UsesMaskPolicy fields. In RVV 0.7.1 these
+        // fields are meaningless therefore we reserved them for the time
+        // being.
         MIB.addImm(0); // tu, mu
         MIB.addReg(RISCV::VL, RegState::Implicit);
         MIB.addReg(RISCV::VTYPE, RegState::Implicit);
@@ -495,14 +586,30 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
           MIB = MIB.addReg(TRI->getSubReg(SrcReg, SubRegIdx + I),
                            getKillRegState(KillSrc));
         if (UseVMV_V_V) {
-          const MCInstrDesc &Desc = DefMBBI->getDesc();
-          MIB.add(DefMBBI->getOperand(RISCVII::getVLOpNum(Desc))); // AVL
-          MIB.add(DefMBBI->getOperand(RISCVII::getSEWOpNum(Desc))); // SEW
+          if (DefMBBI != MBB.end()) {
+            const MCInstrDesc &Desc = DefMBBI->getDesc();
+            MIB.add(DefMBBI->getOperand(RISCVII::getVLOpNum(Desc))); // AVL
+            MIB.add(DefMBBI->getOperand(RISCVII::getSEWOpNum(Desc))); // SEW
+          } else {
+            // If we cannot find defination of the destination, that means
+            // in RVV 1.0 there should be a VMXR instruction. We should already
+            // adjusted vl and vtype above so here we fill the adjusted
+            // vl and vtype to VMV_V_V instruction.
+            MIB.addImm(VL)    // AVL
+                .addImm(8);  // SEW
+          }
           MIB.addImm(0);  // tu, mu
           MIB.addReg(RISCV::VL, RegState::Implicit);
           MIB.addReg(RISCV::VTYPE, RegState::Implicit);
         }
       }
+    }
+
+    // Restore vl and vtype if we modified them before.
+    if (RestoreCSR) {
+      BuildMI(MBB, MBBI, DL, get(RISCV::XVSETVL), RISCV::X0)
+        .addReg(TmpVLReg, RegState::Kill)
+        .addReg(TmpVTypeReg, RegState::Kill);
     }
   } else {
     BuildMI(MBB, MBBI, DL, get(Opc), DstReg)
