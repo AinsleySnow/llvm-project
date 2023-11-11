@@ -359,11 +359,14 @@ let Predicates = [HasVendorXTHeadV] in {
 // } // Predicates = [HasVendorXTHeadV, HasVendorXTHeadVamo, HasStdExtA]
 
 // TODO: try to reuse them from RISCVInstrInfoVPseudos.td, see the `HasStdVOrXTHeadV` predicate
+// FIXME: Since the pseudos in RVV 1.0 defined `HasVecPolicyOp' and `UsesMaskPolicy',
+// reusing these pseudos here in RVV 0.7.1 may result in potential vulnerabilities.
 //===----------------------------------------------------------------------===//
 // 12. Vector Integer Arithmetic Instructions
 //===----------------------------------------------------------------------===//
 let Predicates = [HasVendorXTHeadV] in {
   defm PseudoXVADD   : VPseudoVALU_VV_VX_VI;
+  defm PseudoXVMV_V  : VPseudoUnaryVMV_V_X_I;
 } // Predicates = [HasVendorXTHeadV]
 
 //===----------------------------------------------------------------------===//
