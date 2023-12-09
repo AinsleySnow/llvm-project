@@ -441,25 +441,25 @@ def FeatureStdExtV
                        "'V' (Vector Extension for Application Processors)",
                        [FeatureStdExtZvl128b, FeatureStdExtZve64d]>;
 
-def HasVInstructions    : Predicate<"Subtarget->hasVInstructions()">,
+def HasVInstructions    : Predicate<"Subtarget->hasOnlyStdV()">,
       AssemblerPredicate<
           (any_of FeatureStdExtZve32x),
           "'V' (Vector Extension for Application Processors), 'Zve32x' or "
           "'Zve64x' (Vector Extensions for Embedded Processors)">;
-def HasVInstructionsI64 : Predicate<"Subtarget->hasVInstructionsI64()">,
+def HasVInstructionsI64 : Predicate<"Subtarget->hasOnlyStdVI64()">,
       AssemblerPredicate<
           (any_of FeatureStdExtZve64x),
           "'V' (Vector Extension for Application Processors) or 'Zve64x' "
           "(Vector Extensions for Embedded Processors)">;
-def HasVInstructionsAnyF : Predicate<"Subtarget->hasVInstructionsAnyF()">,
+def HasVInstructionsAnyF : Predicate<"Subtarget->hasOnlyStdVAnyF()">,
       AssemblerPredicate<
           (any_of FeatureStdExtZve32f),
           "'V' (Vector Extension for Application Processors), 'Zve32f', "
           "'Zve64f' or 'Zve64d' (Vector Extensions for Embedded Processors)">;
 
-def HasVInstructionsF64 : Predicate<"Subtarget->hasVInstructionsF64()">;
+def HasVInstructionsF64 : Predicate<"Subtarget->hasOnlyStdVF64()">;
 
-def HasVInstructionsFullMultiply : Predicate<"Subtarget->hasVInstructionsFullMultiply()">;
+def HasVInstructionsFullMultiply : Predicate<"Subtarget->hasOnlyStdVFullMultiply()">;
 
 def FeatureStdExtZvfbfmin
     : SubtargetFeature<"experimental-zvfbfmin", "HasStdExtZvfbfmin", "true",
@@ -482,7 +482,7 @@ def FeatureStdExtZvfh
                        "'Zvfh' (Vector Half-Precision Floating-Point)",
                        [FeatureStdExtZve32f, FeatureStdExtZfhmin]>;
 
-def HasVInstructionsF16 : Predicate<"Subtarget->hasVInstructionsF16()">;
+def HasVInstructionsF16 : Predicate<"Subtarget->hasOnlyStdVF16()">;
 
 def HasStdExtZfhOrZvfh
     : Predicate<"Subtarget->hasStdExtZfh() || Subtarget->hasStdExtZvfh()">,
@@ -893,48 +893,55 @@ def FeatureTaggedGlobals : SubtargetFeature<"tagged-globals",
     "that allows a memory tag in the upper address bits">;
 
 //===----------------------------------------------------------------------===//
-// T-Head in RuyiSDK specific features and extensions (mostly rvv 0.7.1)
+// T-Head Vector in RuyiSDK specific features and extensions
 //===----------------------------------------------------------------------===//
 
 def FeatureVendorXTHeadV
-    : SubtargetFeature<"xtheadv", "HasVendorXTHeadV", "true",
-                       "'xtheadv' (T-Head Base Vector Instructions)">;
+    : SubtargetFeature<"xtheadvector", "HasVendorXTHeadV", "true",
+                       "'xtheadvector' (T-Head Base Vector Instructions)">;
 def HasVendorXTHeadV : Predicate<"Subtarget->hasVendorXTHeadV()">,
                                   AssemblerPredicate<(all_of FeatureVendorXTHeadV),
-                                  "'xtheadv' (T-Head Base Vector Instructions)">;
+                                  "'xtheadvector' (T-Head Base Vector Instructions)">;
 
-def FeatureVendorXTHeadVlsseg
-    : SubtargetFeature<"xtheadvlsseg", "HasVendorXTHeadVlsseg", "true",
-                       "'xtheadvlsseg' (T-Head Vector Load/Store Segment Instructions)">;
-def HasVendorXTHeadVlsseg : Predicate<"Subtarget->hasVendorXTHeadVlsseg()">,
-                                      AssemblerPredicate<(all_of FeatureVendorXTHeadVlsseg),
-                                      "'xtheadvlsseg' (T-Head Vector Load/Store Segment Instructions)">;
-
-def FeatureVendorXTHeadVamo
-    : SubtargetFeature<"xtheadvamo", "HasVendorXTHeadVamo", "true",
-                       "'xtheadvamo' (T-Head Vector AMO Operations)",
+def FeatureVendorXTHeadZvamo
+    : SubtargetFeature<"xtheadzvamo", "HasVendorXTHeadZvamo", "true",
+                       "'xtheadzvamo' (T-Head Vector AMO Operations)",
                        [FeatureStdExtA]>;
-def HasVendorXTHeadVamo : Predicate<"Subtarget->hasVendorXTHeadVamo()">,
-                                    AssemblerPredicate<(all_of FeatureVendorXTHeadVamo),
-                                    "'xtheadvamo' (T-Head Vector AMO Operations)">;
-
-def FeatureVendorXTHeadVediv
-    : SubtargetFeature<"xtheadvediv", "HasVendorXTHeadVediv", "true",
-                       "'xtheadvediv' (T-Head Divided Element Extension)">;
-def HasVendorXTHeadVediv : Predicate<"Subtarget->hasVendorXTHeadVediv()">,
-                                     AssemblerPredicate<(all_of FeatureVendorXTHeadVediv),
-                                     "'xtheadvediv' (T-Head Divided Element Extension)">;
+def HasVendorXTHeadZvamo : Predicate<"Subtarget->hasVendorXTHeadZvamo()">,
+                                     AssemblerPredicate<(all_of FeatureVendorXTHeadZvamo),
+                                     "'xtheadzvamo' (T-Head Vector AMO Operations)">;
 
 // Predicates for reusing instructions/intrinsics in both RVV 1.0 and 0.7
-def HasStdVOrXTHeadV    : Predicate<"Subtarget->hasVInstructions()">,
+def HasStdVOrXTHeadV    : Predicate<"Subtarget->hasStdVOrXTHeadV()">,
       AssemblerPredicate<
           (any_of FeatureStdExtZve32x, FeatureVendorXTHeadV),
           "'V' (Vector Extension for Application Processors), 'Zve32x', "
           "'Zve64x' (Vector Extensions for Embedded Processors) or"
-          "'XTHeadV' (Vector Extension for T-Head)">;
-def HasStdVOrXTHeadVI64 : Predicate<"Subtarget->hasVInstructionsI64()">,
+          "'XTHeadVector' (Vector Extension for T-Head)">;
+def HasStdVOrXTHeadVI64 : Predicate<"Subtarget->hasStdVOrXTHeadVI64()">,
       AssemblerPredicate<
           (any_of FeatureStdExtZve64x, FeatureVendorXTHeadV),
           "'V' (Vector Extension for Application Processors), 'Zve64x' "
           "(Vector Extensions for Embedded Processors) or"
-          "'XTHeadV' (Vector Extension for T-Head)">;
+          "'XTHeadVector' (Vector Extension for T-Head)">;
+
+def HasStdVOrXTHeadVF16 : Predicate<"Subtarget->hasStdVOrXTHeadVF16()">,
+      AssemblerPredicate<
+          (any_of FeatureStdExtZvfh, FeatureVendorXTHeadV),
+          "'V' (Vector Extension for Application Processors), 'Zvfh' "
+          "(Vector Extensions for Embedded Processors) or"
+          "'XTHeadVector' (Vector Extension for T-Head)">;
+
+def HasStdVOrXTHeadVF32 : Predicate<"Subtarget->hasStdVOrXTHeadVF32()">,
+      AssemblerPredicate<
+          (any_of FeatureStdExtZve32f, FeatureVendorXTHeadV),
+          "'V' (Vector Extension for Application Processors), 'Zve32f' "
+          "(Vector Extensions for Embedded Processors) or"
+          "'XTHeadVector' (Vector Extension for T-Head)">;
+
+def HasStdVOrXTHeadVF64 : Predicate<"Subtarget->hasStdVOrXTHeadVF64()">,
+      AssemblerPredicate<
+          (any_of FeatureStdExtZve64d, FeatureVendorXTHeadV),
+          "'V' (Vector Extension for Application Processors), 'Zve64d' "
+          "(Vector Extensions for Embedded Processors) or"
+          "'XTHeadVector' (Vector Extension for T-Head)">;

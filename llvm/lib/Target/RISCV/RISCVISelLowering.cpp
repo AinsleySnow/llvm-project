@@ -1270,6 +1270,23 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
 
   Info.flags |= RISCVTargetLowering::getTargetMMOFlags(I);
   switch (Intrinsic) {
+#define CASE_TAG_TO_THVLSEG_INTRINSIC(tag)  \
+  case Intrinsic::riscv_th_vlseg2##tag:     \
+  case Intrinsic::riscv_th_vlseg3##tag:     \
+  case Intrinsic::riscv_th_vlseg4##tag:     \
+  case Intrinsic::riscv_th_vlseg5##tag:     \
+  case Intrinsic::riscv_th_vlseg6##tag:     \
+  case Intrinsic::riscv_th_vlseg7##tag:     \
+  case Intrinsic::riscv_th_vlseg8##tag:
+#define CASE_TAG_TO_THVSSEG_INTRINSIC(tag)  \
+  case Intrinsic::riscv_th_vsseg2##tag:     \
+  case Intrinsic::riscv_th_vsseg3##tag:     \
+  case Intrinsic::riscv_th_vsseg4##tag:     \
+  case Intrinsic::riscv_th_vsseg5##tag:     \
+  case Intrinsic::riscv_th_vsseg6##tag:     \
+  case Intrinsic::riscv_th_vsseg7##tag:     \
+  case Intrinsic::riscv_th_vsseg8##tag:
+
   default:
     return false;
   case Intrinsic::riscv_masked_atomicrmw_xchg_i32:
@@ -1319,23 +1336,25 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vle_mask:
   case Intrinsic::riscv_vleff:
   case Intrinsic::riscv_vleff_mask:
+  case Intrinsic::riscv_th_vleff:
+  case Intrinsic::riscv_th_vleff_mask:
     return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ true);
-  case Intrinsic::riscv_xvlb:
-  case Intrinsic::riscv_xvlbu:
-  case Intrinsic::riscv_xvlb_mask:
-  case Intrinsic::riscv_xvlbu_mask:
-  case Intrinsic::riscv_xvlh:
-  case Intrinsic::riscv_xvlhu:
-  case Intrinsic::riscv_xvlh_mask:
-  case Intrinsic::riscv_xvlhu_mask:
-  case Intrinsic::riscv_xvlw:
-  case Intrinsic::riscv_xvlwu:
-  case Intrinsic::riscv_xvlw_mask:
-  case Intrinsic::riscv_xvlwu_mask:
-  case Intrinsic::riscv_xvle:
-  case Intrinsic::riscv_xvle_mask:
+  case Intrinsic::riscv_th_vlb:
+  case Intrinsic::riscv_th_vlbu:
+  case Intrinsic::riscv_th_vlb_mask:
+  case Intrinsic::riscv_th_vlbu_mask:
+  case Intrinsic::riscv_th_vlh:
+  case Intrinsic::riscv_th_vlhu:
+  case Intrinsic::riscv_th_vlh_mask:
+  case Intrinsic::riscv_th_vlhu_mask:
+  case Intrinsic::riscv_th_vlw:
+  case Intrinsic::riscv_th_vlwu:
+  case Intrinsic::riscv_th_vlw_mask:
+  case Intrinsic::riscv_th_vlwu_mask:
+  case Intrinsic::riscv_th_vle:
+  case Intrinsic::riscv_th_vle_mask:
     if (!Subtarget.hasVendorXTHeadV())
       return false;
     return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
@@ -1346,14 +1365,14 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
     return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ true);
-  case Intrinsic::riscv_xvsb:
-  case Intrinsic::riscv_xvsh:
-  case Intrinsic::riscv_xvsw:
-  case Intrinsic::riscv_xvse:
-  case Intrinsic::riscv_xvsb_mask:
-  case Intrinsic::riscv_xvsh_mask:
-  case Intrinsic::riscv_xvsw_mask:
-  case Intrinsic::riscv_xvse_mask:
+  case Intrinsic::riscv_th_vsb:
+  case Intrinsic::riscv_th_vsh:
+  case Intrinsic::riscv_th_vsw:
+  case Intrinsic::riscv_th_vse:
+  case Intrinsic::riscv_th_vsb_mask:
+  case Intrinsic::riscv_th_vsh_mask:
+  case Intrinsic::riscv_th_vsw_mask:
+  case Intrinsic::riscv_th_vse_mask:
     if (!Subtarget.hasVendorXTHeadV())
       return false;
     return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
@@ -1368,12 +1387,66 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
     return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false);
+  case Intrinsic::riscv_th_vlsb:
+  case Intrinsic::riscv_th_vlsbu:
+  case Intrinsic::riscv_th_vlsb_mask:
+  case Intrinsic::riscv_th_vlsbu_mask:
+  case Intrinsic::riscv_th_vlsh:
+  case Intrinsic::riscv_th_vlshu:
+  case Intrinsic::riscv_th_vlsh_mask:
+  case Intrinsic::riscv_th_vlshu_mask:
+  case Intrinsic::riscv_th_vlsw:
+  case Intrinsic::riscv_th_vlswu:
+  case Intrinsic::riscv_th_vlsw_mask:
+  case Intrinsic::riscv_th_vlswu_mask:
+  case Intrinsic::riscv_th_vlse:
+  case Intrinsic::riscv_th_vlse_mask:
+  case Intrinsic::riscv_th_vlxb:
+  case Intrinsic::riscv_th_vlxbu:
+  case Intrinsic::riscv_th_vlxb_mask:
+  case Intrinsic::riscv_th_vlxbu_mask:
+  case Intrinsic::riscv_th_vlxh:
+  case Intrinsic::riscv_th_vlxhu:
+  case Intrinsic::riscv_th_vlxh_mask:
+  case Intrinsic::riscv_th_vlxhu_mask:
+  case Intrinsic::riscv_th_vlxw:
+  case Intrinsic::riscv_th_vlxwu:
+  case Intrinsic::riscv_th_vlxw_mask:
+  case Intrinsic::riscv_th_vlxwu_mask:
+  case Intrinsic::riscv_th_vlxe:
+  case Intrinsic::riscv_th_vlxe_mask:
+    if (!Subtarget.hasVendorXTHeadV())
+      return false;
+    return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
+                               /*IsStore*/ false,
+                               /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vsse:
   case Intrinsic::riscv_vsse_mask:
   case Intrinsic::riscv_vsoxei:
   case Intrinsic::riscv_vsoxei_mask:
   case Intrinsic::riscv_vsuxei:
   case Intrinsic::riscv_vsuxei_mask:
+    return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
+                               /*IsStore*/ true,
+                               /*IsUnitStrided*/ false);
+  case Intrinsic::riscv_th_vssb:
+  case Intrinsic::riscv_th_vssb_mask:
+  case Intrinsic::riscv_th_vssh:
+  case Intrinsic::riscv_th_vssh_mask:
+  case Intrinsic::riscv_th_vssw:
+  case Intrinsic::riscv_th_vssw_mask:
+  case Intrinsic::riscv_th_vsse:
+  case Intrinsic::riscv_th_vsse_mask:
+  case Intrinsic::riscv_th_vsxb:
+  case Intrinsic::riscv_th_vsxb_mask:
+  case Intrinsic::riscv_th_vsxh:
+  case Intrinsic::riscv_th_vsxh_mask:
+  case Intrinsic::riscv_th_vsxw:
+  case Intrinsic::riscv_th_vsxw_mask:
+  case Intrinsic::riscv_th_vsxe:
+  case Intrinsic::riscv_th_vsxe_mask:
+    if (!Subtarget.hasVendorXTHeadV())
+      return false;
     return SetRVVLoadStoreInfo(/*PtrOp*/ 1,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
@@ -1391,6 +1464,13 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vlseg6ff:
   case Intrinsic::riscv_vlseg7ff:
   case Intrinsic::riscv_vlseg8ff:
+  CASE_TAG_TO_THVLSEG_INTRINSIC(b)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(bu)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(h)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(hu)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(w)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(wu)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(e)
     return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 2,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false);
@@ -1409,6 +1489,16 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vlseg7ff_mask:
   case Intrinsic::riscv_vlseg8ff_mask:
     return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 4,
+                               /*IsStore*/ false,
+                               /*IsUnitStrided*/ false);
+  CASE_TAG_TO_THVLSEG_INTRINSIC(b_mask)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(bu_mask)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(h_mask)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(hu_mask)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(w_mask)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(wu_mask)
+  CASE_TAG_TO_THVLSEG_INTRINSIC(e_mask)
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vlsseg2:
@@ -1466,6 +1556,10 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vsseg6:
   case Intrinsic::riscv_vsseg7:
   case Intrinsic::riscv_vsseg8:
+  CASE_TAG_TO_THVSSEG_INTRINSIC(b)
+  CASE_TAG_TO_THVSSEG_INTRINSIC(h)
+  CASE_TAG_TO_THVSSEG_INTRINSIC(w)
+  CASE_TAG_TO_THVSSEG_INTRINSIC(e)
     return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 2,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
@@ -1476,6 +1570,10 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vsseg6_mask:
   case Intrinsic::riscv_vsseg7_mask:
   case Intrinsic::riscv_vsseg8_mask:
+  CASE_TAG_TO_THVSSEG_INTRINSIC(b_mask)
+  CASE_TAG_TO_THVSSEG_INTRINSIC(h_mask)
+  CASE_TAG_TO_THVSSEG_INTRINSIC(w_mask)
+  CASE_TAG_TO_THVSSEG_INTRINSIC(e_mask)
     return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
@@ -14565,6 +14663,102 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
   return DoneMBB;
 }
 
+static MachineBasicBlock *emitXWholeLoadStore(MachineInstr &MI,
+                                              MachineBasicBlock *BB,
+                                              unsigned SEW, unsigned LMUL,
+                                              unsigned Opcode) {
+  DebugLoc DL = MI.getDebugLoc();
+
+  auto *TII = BB->getParent()->getSubtarget().getInstrInfo();
+  auto *MRI = &BB->getParent()->getRegInfo();
+
+  Register SavedVL = MRI->createVirtualRegister(&RISCV::GPRRegClass);
+  Register SavedVType = MRI->createVirtualRegister(&RISCV::GPRRegClass);
+
+  // Spec: The assembler pseudoinstruction to read a CSR, `CSRR rd, csr`, is
+  // encoded as `CSRRS rd, csr, x0`.
+  BuildMI(*BB, MI, DL, TII->get(RISCV::CSRRS), SavedVL)
+      .addImm(RISCVSysReg::lookupSysRegByName("VL")->Encoding)
+      .addReg(RISCV::X0);
+  BuildMI(*BB, MI, DL, TII->get(RISCV::CSRRS), SavedVType)
+      .addImm(RISCVSysReg::lookupSysRegByName("VTYPE")->Encoding)
+      .addReg(RISCV::X0);
+
+  // Generate `vsetvli x0, x0, e<SEW>, m<LMUL>`
+  auto VTypeI = RISCVVType::encodeXTHeadVTYPE(SEW, LMUL, 1);
+  BuildMI(*BB, MI, DL, TII->get(RISCV::TH_VSETVLI))
+      .addReg(RISCV::X0, RegState::Define | RegState::Dead)
+      .addReg(RISCV::X0)
+      .addImm(VTypeI)
+      .addReg(RISCV::VL, RegState::Implicit);
+
+  // Generate `vle.v` or `vse.v`
+  // From GCC: `vl<LMUL>re<SEW>.v vd, (rs)` -> `vle.v vd, (rs), vm`
+  // From GCC: `vs<LMUL>r.v       vd, (rs)` -> `vse.v vs, (rs), vm`
+  BuildMI(*BB, MI, DL, TII->get(Opcode))
+      .add(MI.getOperand(0))  // vd or vs
+      .add(MI.getOperand(1)); // rs, the load/store address
+
+  // Restore vl, vtype with `vsetvl x0, SavedVL, SavedVType`
+  BuildMI(*BB, MI, DL, TII->get(RISCV::TH_VSETVL))
+      .addReg(RISCV::X0, RegState::Define | RegState::Dead)
+      .addReg(SavedVL, RegState::Kill)
+      .addReg(SavedVType, RegState::Kill);
+
+  // Erase the pseudoinstruction.
+  MI.eraseFromParent();
+  return BB;
+}
+
+static MachineBasicBlock *emitXWholeLoad(MachineInstr &MI,
+                                         MachineBasicBlock *BB, unsigned SEW,
+                                         unsigned LMUL, unsigned Opcode) {
+  return emitXWholeLoadStore(MI, BB, SEW, LMUL, Opcode);
+}
+
+static MachineBasicBlock *emitXWholeStore(MachineInstr &MI,
+                                          MachineBasicBlock *BB, unsigned SEW,
+                                          unsigned LMUL, unsigned Opcode) {
+  return emitXWholeLoadStore(MI, BB, SEW, LMUL, Opcode);
+}
+
+static MachineBasicBlock *emitXWholeMove(MachineInstr &MI,
+                                         MachineBasicBlock *BB, unsigned NREGS) {
+  assert((NREGS == 1 || NREGS == 2 || NREGS == 4 || NREGS == 8) &&
+         "Unexpected NREGS");
+  DebugLoc DL = MI.getDebugLoc();
+
+  auto *TII = BB->getParent()->getSubtarget().getInstrInfo();
+  auto *TRI = BB->getParent()->getSubtarget().getRegisterInfo();
+
+  // From RVV Spec 1.0:
+  // vmv<nr>r.v vd,  vs2  # General form
+  // vmv1r.v    v1,  v2   # Copy v1=v2
+  // vmv2r.v    v10, v12  # Copy v10=v12; v11=v13
+  // vmv4r.v    v4,  v8   # Copy v4=v8; v5=v9; v6=v10; v7=v11
+  // vmv8r.v    v0,  v8   # Copy v0=v8; v1=v9; ...; v7=v15
+
+  // We decide to emulate these instructions by "expanding" them to a sequence
+  // of individual `vmv.v` instructions, where vector-ness is not preserved.
+  // But I suppose this is fine since `RISCVInstrInfo::copyPhysReg` also expands
+  // suitable `vmv<nr>r.v` instructions to `vmv.v` sequence
+  // when `NF` (much like the `NREGS` here) is not 1.
+  // TODO[RVV 0.7.1]: be like vector operations?
+
+  auto DstRegNo = MI.getOperand(0).getReg();
+  auto SrcRegNo = MI.getOperand(1).getReg();
+
+  for (unsigned I = 0; I < NREGS; ++I) {
+    auto DstReg = TRI->getSubReg(DstRegNo, RISCV::sub_vrm1_0 + I);
+    auto SrcReg = TRI->getSubReg(SrcRegNo, RISCV::sub_vrm1_0 + I);
+    BuildMI(*BB, MI, DL, TII->get(RISCV::TH_VMV_V_V), DstReg)
+        .addReg(SrcReg);
+  }
+
+  MI.eraseFromParent();
+  return BB;
+}
+
 MachineBasicBlock *
 RISCVTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
                                                  MachineBasicBlock *BB) const {
@@ -14684,6 +14878,50 @@ RISCVTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   case RISCV::PseudoFROUND_D_INX:
   case RISCV::PseudoFROUND_D_IN32X:
     return emitFROUND(MI, BB, Subtarget);
+
+  // Emulated whole move instructions for RVV 0.7
+  case RISCV::PseudoTH_VMV1R_V:
+    return emitXWholeMove(MI, BB, 1);
+  case RISCV::PseudoTH_VMV2R_V:
+    return emitXWholeMove(MI, BB, 2);
+  case RISCV::PseudoTH_VMV4R_V:
+    return emitXWholeMove(MI, BB, 4);
+  case RISCV::PseudoTH_VMV8R_V:
+    return emitXWholeMove(MI, BB, 8);
+
+#define PseudoXVL_CASE_SEW_LMUL(SEW_val, LMUL_val)                             \
+  case RISCV::PseudoTH_VL##LMUL_val##RE##SEW_val##_V:                            \
+    return emitXWholeLoad(MI, BB, SEW_val, LMUL_val,                           \
+                          RISCV::PseudoTH_VLE_V_M##LMUL_val);
+
+#define PseudoXVL_CASE_SEW(SEW_val)                                            \
+  PseudoXVL_CASE_SEW_LMUL(SEW_val, 1);                                         \
+  PseudoXVL_CASE_SEW_LMUL(SEW_val, 2);                                         \
+  PseudoXVL_CASE_SEW_LMUL(SEW_val, 4);                                         \
+  PseudoXVL_CASE_SEW_LMUL(SEW_val, 8);
+
+  // Emulated whole load instructions for RVV 0.7
+  PseudoXVL_CASE_SEW(8);
+  PseudoXVL_CASE_SEW(16);
+  PseudoXVL_CASE_SEW(32);
+  PseudoXVL_CASE_SEW(64);
+
+#define PseudoXVS_CASE_SEW_LMUL(SEW_val, LMUL_val)                             \
+  case RISCV::PseudoTH_VS##LMUL_val##RE##SEW_val##_V:                            \
+  return emitXWholeStore(MI, BB, SEW_val, LMUL_val,                            \
+                         RISCV::PseudoTH_VSE_V_M##LMUL_val);
+
+#define PseudoXVS_CASE_SEW(SEW_val)                                            \
+  PseudoXVS_CASE_SEW_LMUL(SEW_val, 1);                                         \
+  PseudoXVS_CASE_SEW_LMUL(SEW_val, 2);                                         \
+  PseudoXVS_CASE_SEW_LMUL(SEW_val, 4);                                         \
+  PseudoXVS_CASE_SEW_LMUL(SEW_val, 8);
+
+  // Emulated whole store instructions for RVV 0.7
+  PseudoXVS_CASE_SEW(8);
+  PseudoXVS_CASE_SEW(16);
+  PseudoXVS_CASE_SEW(32);
+  PseudoXVS_CASE_SEW(64);
   }
 }
 

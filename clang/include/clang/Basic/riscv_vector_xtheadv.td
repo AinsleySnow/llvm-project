@@ -14,9 +14,9 @@
 
 include "riscv_vector_common.td"
 
-class XRVVBuiltin<string suffix, string prototype, string type_range,
-                  string overloaded_suffix = "">
-    : RVVBuiltin<suffix, prototype, type_range, overloaded_suffix> {
+class RVVOutBuiltin<string suffix, string prototype, string type_range>
+    : RVVBuiltin<suffix, prototype, type_range> {
+  let IntrinsicTypes = [-1];
 }
 
 multiclass RVVBuiltinSet<string intrinsic_name, string type_range,
@@ -28,7 +28,7 @@ multiclass RVVBuiltinSet<string intrinsic_name, string type_range,
       let Name = NAME # "_" # s_p[0] in {
         defvar suffix = s_p[1];
         defvar prototype = s_p[2];
-        def : XRVVBuiltin<suffix, prototype, type_range>;
+        def : RVVBuiltin<suffix, prototype, type_range>;
       }
     }
   }
@@ -55,7 +55,7 @@ multiclass RVVIntBinBuiltinSet
 
 
 //===----------------------------------------------------------------------===//
-// 6. Configuration-Setting Instructions
+// 6. Configuration-Setting and Utility
 //===----------------------------------------------------------------------===//
 
 // Define vread_csr&vwrite_csr described in RVV intrinsics doc.
@@ -99,7 +99,7 @@ void __riscv_vwrite_csr(enum RVV_CSR __csr, unsigned long __value) {
   }
 }
 }] in
-def xvread_xvwrite_csr: RVVHeader;
+def th_vread_th_vwrite_csr: RVVHeader;
 
 // vsetvl/vsetvlmax are a macro because they require constant integers in SEW
 // and LMUL.
@@ -108,55 +108,55 @@ let HeaderCode =
 
 /* These two builtins comes from the 1.0 implementation, */
 /* for compatibility, we forward these calls to the corresponding 0.7 builtins. */
-#define __builtin_rvv_vsetvli(avl, sew, lmul) __builtin_rvv_xvsetvl((size_t)(avl), sew, lmul)
-#define __builtin_rvv_vsetvlimax(sew, lmul)   __builtin_rvv_xvsetvlmax(sew, lmul)
+#define __builtin_rvv_vsetvli(avl, sew, lmul) __builtin_rvv_th_vsetvl((size_t)(avl), sew, lmul)
+#define __builtin_rvv_vsetvlimax(sew, lmul)   __builtin_rvv_th_vsetvlmax(sew, lmul)
 
-#define __riscv_vsetvl_e8m1(avl) __builtin_rvv_xvsetvl((size_t)(avl), 0, 0)
-#define __riscv_vsetvl_e8m2(avl) __builtin_rvv_xvsetvl((size_t)(avl), 0, 1)
-#define __riscv_vsetvl_e8m4(avl) __builtin_rvv_xvsetvl((size_t)(avl), 0, 2)
-#define __riscv_vsetvl_e8m8(avl) __builtin_rvv_xvsetvl((size_t)(avl), 0, 3)
+#define __riscv_vsetvl_e8m1(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 0, 0)
+#define __riscv_vsetvl_e8m2(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 0, 1)
+#define __riscv_vsetvl_e8m4(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 0, 2)
+#define __riscv_vsetvl_e8m8(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 0, 3)
 
-#define __riscv_vsetvl_e16m1(avl) __builtin_rvv_xvsetvl((size_t)(avl), 1, 0)
-#define __riscv_vsetvl_e16m2(avl) __builtin_rvv_xvsetvl((size_t)(avl), 1, 1)
-#define __riscv_vsetvl_e16m4(avl) __builtin_rvv_xvsetvl((size_t)(avl), 1, 2)
-#define __riscv_vsetvl_e16m8(avl) __builtin_rvv_xvsetvl((size_t)(avl), 1, 3)
+#define __riscv_vsetvl_e16m1(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 1, 0)
+#define __riscv_vsetvl_e16m2(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 1, 1)
+#define __riscv_vsetvl_e16m4(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 1, 2)
+#define __riscv_vsetvl_e16m8(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 1, 3)
 
-#define __riscv_vsetvl_e32m1(avl) __builtin_rvv_xvsetvl((size_t)(avl), 2, 0)
-#define __riscv_vsetvl_e32m2(avl) __builtin_rvv_xvsetvl((size_t)(avl), 2, 1)
-#define __riscv_vsetvl_e32m4(avl) __builtin_rvv_xvsetvl((size_t)(avl), 2, 2)
-#define __riscv_vsetvl_e32m8(avl) __builtin_rvv_xvsetvl((size_t)(avl), 2, 3)
+#define __riscv_vsetvl_e32m1(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 2, 0)
+#define __riscv_vsetvl_e32m2(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 2, 1)
+#define __riscv_vsetvl_e32m4(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 2, 2)
+#define __riscv_vsetvl_e32m8(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 2, 3)
 
 #if __riscv_v_elen >= 64
-#define __riscv_vsetvl_e64m1(avl) __builtin_rvv_xvsetvl((size_t)(avl), 3, 0)
-#define __riscv_vsetvl_e64m2(avl) __builtin_rvv_xvsetvl((size_t)(avl), 3, 1)
-#define __riscv_vsetvl_e64m4(avl) __builtin_rvv_xvsetvl((size_t)(avl), 3, 2)
-#define __riscv_vsetvl_e64m8(avl) __builtin_rvv_xvsetvl((size_t)(avl), 3, 3)
+#define __riscv_vsetvl_e64m1(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 3, 0)
+#define __riscv_vsetvl_e64m2(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 3, 1)
+#define __riscv_vsetvl_e64m4(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 3, 2)
+#define __riscv_vsetvl_e64m8(avl) __builtin_rvv_th_vsetvl((size_t)(avl), 3, 3)
 #endif
 
-#define __riscv_vsetvlmax_e8m1() __builtin_rvv_xvsetvlmax(0, 0)
-#define __riscv_vsetvlmax_e8m2() __builtin_rvv_xvsetvlmax(0, 1)
-#define __riscv_vsetvlmax_e8m4() __builtin_rvv_xvsetvlmax(0, 2)
-#define __riscv_vsetvlmax_e8m8() __builtin_rvv_xvsetvlmax(0, 3)
+#define __riscv_vsetvlmax_e8m1() __builtin_rvv_th_vsetvlmax(0, 0)
+#define __riscv_vsetvlmax_e8m2() __builtin_rvv_th_vsetvlmax(0, 1)
+#define __riscv_vsetvlmax_e8m4() __builtin_rvv_th_vsetvlmax(0, 2)
+#define __riscv_vsetvlmax_e8m8() __builtin_rvv_th_vsetvlmax(0, 3)
 
-#define __riscv_vsetvlmax_e16m1() __builtin_rvv_xvsetvlmax(1, 0)
-#define __riscv_vsetvlmax_e16m2() __builtin_rvv_xvsetvlmax(1, 1)
-#define __riscv_vsetvlmax_e16m4() __builtin_rvv_xvsetvlmax(1, 2)
-#define __riscv_vsetvlmax_e16m8() __builtin_rvv_xvsetvlmax(1, 3)
+#define __riscv_vsetvlmax_e16m1() __builtin_rvv_th_vsetvlmax(1, 0)
+#define __riscv_vsetvlmax_e16m2() __builtin_rvv_th_vsetvlmax(1, 1)
+#define __riscv_vsetvlmax_e16m4() __builtin_rvv_th_vsetvlmax(1, 2)
+#define __riscv_vsetvlmax_e16m8() __builtin_rvv_th_vsetvlmax(1, 3)
 
-#define __riscv_vsetvlmax_e32m1() __builtin_rvv_xvsetvlmax(2, 0)
-#define __riscv_vsetvlmax_e32m2() __builtin_rvv_xvsetvlmax(2, 1)
-#define __riscv_vsetvlmax_e32m4() __builtin_rvv_xvsetvlmax(2, 2)
-#define __riscv_vsetvlmax_e32m8() __builtin_rvv_xvsetvlmax(2, 3)
+#define __riscv_vsetvlmax_e32m1() __builtin_rvv_th_vsetvlmax(2, 0)
+#define __riscv_vsetvlmax_e32m2() __builtin_rvv_th_vsetvlmax(2, 1)
+#define __riscv_vsetvlmax_e32m4() __builtin_rvv_th_vsetvlmax(2, 2)
+#define __riscv_vsetvlmax_e32m8() __builtin_rvv_th_vsetvlmax(2, 3)
 
 #if __riscv_v_elen >= 64
-#define __riscv_vsetvlmax_e64m1() __builtin_rvv_xvsetvlmax(3, 0)
-#define __riscv_vsetvlmax_e64m2() __builtin_rvv_xvsetvlmax(3, 1)
-#define __riscv_vsetvlmax_e64m4() __builtin_rvv_xvsetvlmax(3, 2)
-#define __riscv_vsetvlmax_e64m8() __builtin_rvv_xvsetvlmax(3, 3)
+#define __riscv_vsetvlmax_e64m1() __builtin_rvv_th_vsetvlmax(3, 0)
+#define __riscv_vsetvlmax_e64m2() __builtin_rvv_th_vsetvlmax(3, 1)
+#define __riscv_vsetvlmax_e64m4() __builtin_rvv_th_vsetvlmax(3, 2)
+#define __riscv_vsetvlmax_e64m8() __builtin_rvv_th_vsetvlmax(3, 3)
 #endif
 
 }] in
-def xvsetvl_macro: RVVHeader;
+def th_vsetvl_macro: RVVHeader;
 
 let HasBuiltinAlias = false,
     HasVL = false,
@@ -165,14 +165,80 @@ let HasBuiltinAlias = false,
     Log2LMUL = [0],
     ManualCodegen = [{IntrinsicTypes = {ResultType};}] in // Set XLEN type
 {
-  def xvsetvl : RVVBuiltin<"", "zzKzKz", "i">;
-  def xvsetvlmax : RVVBuiltin<"", "zKzKz", "i">;
+  def th_vsetvl : RVVBuiltin<"", "zzKzKz", "i">;
+  def th_vsetvlmax : RVVBuiltin<"", "zKzKz", "i">;
 }
 
 //===----------------------------------------------------------------------===//
-// 12. Vector Integer Arithmetic Instructions
+// 7. Vector Loads and Stores
+//===----------------------------------------------------------------------===//
+
+let SupportOverloading = false,
+    UnMaskedPolicyScheme = HasPassthruOperand in {
+  multiclass RVVVLEBuiltin<list<string> types> {
+    let Name = NAME # "_v",
+        IRName = "th_vle",
+        MaskedIRName ="th_vle_mask" in {
+      foreach type = types in {
+        // `vPCe` is type `const T * -> VectorType`
+        def : RVVOutBuiltin<"v", "vPCe", type>;
+        if !not(IsFloat<type>.val) then {
+          // `UvPCUe` is type `const unsigned T * -> unsigned VectorType`
+          def : RVVOutBuiltin<"Uv", "UvPCUe", type>;
+        }
+      }
+    }
+  }
+}
+
+let HasMaskedOffOperand = false,
+    MaskedPolicyScheme = NonePolicy,
+    ManualCodegen = [{
+      if (IsMasked) {
+        // Builtin: (mask, ptr, value, vl). Intrinsic: (value, ptr, mask, vl)
+        std::swap(Ops[0], Ops[2]);
+      } else {
+        // Builtin: (ptr, value, vl). Intrinsic: (value, ptr, vl)
+        std::swap(Ops[0], Ops[1]);
+      }
+      Ops[1] = Builder.CreateBitCast(Ops[1], Ops[0]->getType()->getPointerTo());
+      if (IsMasked)
+        IntrinsicTypes = {Ops[0]->getType(), Ops[3]->getType()};
+      else
+        IntrinsicTypes = {Ops[0]->getType(), Ops[2]->getType()};
+    }] in {
+  multiclass RVVVSEBuiltin<list<string> types> {
+    let Name = NAME # "_v",
+        IRName = "th_vse",
+        MaskedIRName = "th_vse_mask" in {
+      foreach type = types in {
+        // `0Pev` is type `T * -> VectorType -> void`
+        def : RVVBuiltin<"v", "0Pev", type>;
+        if !not(IsFloat<type>.val) then {
+          // `0PUeUv` is type `unsigned T * -> unsigned VectorType -> void`
+          def : RVVBuiltin<"Uv", "0PUeUv", type>;
+        }
+      }
+    }
+  }
+}
+
+// 7.1. Vector Unit-Stride Operations
+// TODO: vlb, vlh, vlw
+defm th_vle8: RVVVLEBuiltin<["c"]>;
+defm th_vle16: RVVVLEBuiltin<["s","x"]>;
+defm th_vle32: RVVVLEBuiltin<["i","f"]>;
+defm th_vle64: RVVVLEBuiltin<["l","d"]>;
+// TODO: vsb, vsh, vsw
+defm th_vse8 : RVVVSEBuiltin<["c"]>;
+defm th_vse16: RVVVSEBuiltin<["s","x"]>;
+defm th_vse32: RVVVSEBuiltin<["i","f"]>;
+defm th_vse64: RVVVSEBuiltin<["l","d"]>;
+
+//===----------------------------------------------------------------------===//
+// 12. Vector Integer Arithmetic Operations
 //===----------------------------------------------------------------------===//
 
 let UnMaskedPolicyScheme = HasPassthruOperand in {
-  defm xvadd : RVVIntBinBuiltinSet;
+  defm th_vadd : RVVIntBinBuiltinSet;
 }
